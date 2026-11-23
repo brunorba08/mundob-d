@@ -97,7 +97,7 @@ function showError(form,message='') {
 }
 async function api(path,options) {
   const headers = new Headers(options?.headers);
-  if (accessCode) headers.set('Authorization','Bearer '+accessCode);
+  if (accessCode) headers.set('X-Album-Code',accessCode);
   const response = await fetch(backend+'/api/'+path,{...options,headers});
   if (response.status === 401) {
     const dialog = $('#access-editor');
@@ -126,7 +126,7 @@ document.querySelectorAll('[data-note]').forEach(button=>button.addEventListener
 
 function mediaUrl(path) {
   if (!mediaFiles.has(path)) {
-    mediaFiles.set(path,fetch(backend+path,{headers:{Authorization:'Bearer '+accessCode}}).then(response=>{
+    mediaFiles.set(path,fetch(backend+path,{headers:{'X-Album-Code':accessCode}}).then(response=>{
       if (!response.ok) throw new Error('Não foi possível abrir o arquivo.');
       return response.blob();
     }).then(blob=>URL.createObjectURL(blob)).catch(error=>{
