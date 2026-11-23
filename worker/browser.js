@@ -1,3 +1,7 @@
+const backend = document.documentElement.dataset.backend ?? '';
+let accessCode = '';
+try { accessCode = localStorage.getItem('mundo-b-d-access') ?? ''; } catch {}
+const mediaFiles = new Map();
 const $ = selector => document.querySelector(selector);
 const editor = $('#editor');
 const form = $('#memory-form');
@@ -33,7 +37,13 @@ function showError(form,message='') {
   feedback.hidden = !message;
 }
 async function api(path,options) {
-  const response = await fetch('/api/'+path,options);
+  const headers = new Headers(options?.headers);
+  if (accessCode) headers.set('Authorization','Bearer '+accessCode);
+  const response = await fetch(backend+'/api/'+path,{...options,headers});
+  if (response.status === 401) {
+    const dialog = $('#access-editor');
+    if (!dialog.open) dialog.showModal();
+  }
   let data;
   try { data = await response.json(); }
   catch { throw new Error('Não foi possível acessar o álbum. Confira sua conexão e tente novamente.'); }
@@ -55,16 +65,31 @@ document.querySelectorAll('[data-note]').forEach(button=>button.addEventListener
   if (dialog.querySelector('button[type=submit]').disabled) event.preventDefault();
 }));
 
+function mediaUrl(path) {
+  if (!mediaFiles.has(path)) {
+    mediaFiles.set(path,fetch(backend+path,{headers:{Authorization:'Bearer '+accessCode}}).then(response=>{
+      if (!response.ok) throw new Error('Não foi possível abrir o arquivo.');
+      return response.blob();
+    }).then(blob=>URL.createObjectURL(blob)).catch(error=>{
+      mediaFiles.delete(path);
+      throw error;
+    }));
+  }
+  return mediaFiles.get(path);
+}
+function loadImage(image,path) {
+  mediaUrl(path).then(url=>{ image.src = url; }).catch(()=>{});
+}
 function photoButton(src,label,lazy=false) {
   const button = action('',()=>{
     const preview = $('#viewer-photo');
-    preview.src = src;
+    loadImage(preview,src);
     preview.alt = label;
     $('#viewer').showModal();
   },'photo-button');
   button.setAttribute('aria-label','Ampliar foto · '+label);
   const image = make('img');
-  image.src = src;
+  loadImage(image,src);
   image.alt = label;
   if (lazy) image.loading = 'lazy';
   button.append(image);
@@ -88,7 +113,7 @@ function renderCover() {
     $('#cover-caption').textContent = 'Bruno & Dhennifer';
   } else if (!cover.firstElementChild || cover.querySelector('button')) {
     const img = make('img');
-    img.src = '/cover.webp';
+    img.src = './cover.webp';
     img.alt = 'Praia ao pôr do sol, imagem ilustrativa';
     cover.replaceChildren(img);
   }
@@ -141,9 +166,22 @@ function renderTimeline() {
       video.controls = true;
       video.preload = 'none';
       video.playsInline = true;
-      video.src = memory.video;
       video.setAttribute('aria-label','Vídeo · '+memory.title);
-      card.append(video);
+      const play = action('Carregar vídeo',async ()=>{
+        play.disabled = true;
+        play.textContent = 'Carregando vídeo…';
+        try {
+          video.src = await mediaUrl(memory.video);
+          video.hidden = false;
+          play.remove();
+          video.play().catch(()=>{});
+        } catch {
+          play.textContent = 'Tentar carregar o vídeo novamente';
+          play.disabled = false;
+        }
+      });
+      video.hidden = true;
+      card.append(play,video);
     }
     card.append(action('Editar lembrança',()=>openMemory(memory),'btn outline edit'));
     timeline.append(card);
@@ -185,8 +223,8 @@ async function loadAlbum() {
   try {
     album = await api('album');
     render();
-  } catch {
-    timeline.replaceChildren(make('p','Não foi possível carregar as lembranças.'),action('Tentar novamente',loadAlbum));
+  } catch (error) {
+    timeline.replaceChildren(make('p',error.message),action('Tentar novamente',loadAlbum));
   }
 }
 
@@ -221,7 +259,7 @@ function openMemory(memory,plan) {
     checkbox.name = 'keep'+index;
     checkbox.checked = true;
     const thumbnail = make('img');
-    thumbnail.src = src;
+    loadImage(thumbnail,src);
     thumbnail.alt = '';
     const caption = captionField('caption'+index,memory.captions?.[src],'O que essa foto lembra?');
     checkbox.addEventListener('change',()=>{ caption.hidden = !checkbox.checked; });
@@ -258,7 +296,7 @@ $('#choose-cover').addEventListener('click',()=>{
     checkbox.value = src;
     checkbox.checked = selected.has(src);
     const image = make('img');
-    image.src = src;
+    loadImage(image,src);
     image.alt = '';
     image.loading = 'lazy';
     row.append(checkbox,image,make('span',label));
@@ -310,7 +348,7 @@ onSubmit(coverForm,async data=>{
   album.cover = await send('cover',{photos});
 });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 window.addEventListener('beforeinstallprompt',event=>{
   event.preventDefault();
   installPrompt = event;
@@ -324,4 +362,27 @@ $('#install').addEventListener('click',async ()=>{
   try { await prompt.prompt(); }
   catch { $('#install-help').showModal(); }
 });
-loadAlbum();
+const accessDialog = $('#access-editor');
+const accessForm = $('#access-form');
+accessDialog.addEventListener('cancel',event=>event.preventDefault());
+accessForm.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const submit = accessForm.querySelector('button');
+  if (submit.disabled) return;
+  submit.disabled = true;
+  accessCode = accessForm.elements.code.value.trim();
+  showError(accessForm);
+  try {
+    album = await api('album');
+    try { localStorage.setItem('mundo-b-d-access',accessCode); } catch {}
+    accessForm.reset();
+    accessDialog.close();
+    render();
+  } catch (error) {
+    showError(accessForm,error.message);
+  } finally {
+    submit.disabled = false;
+  }
+});
+if (accessCode) loadAlbum();
+else accessDialog.showModal();

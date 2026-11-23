@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#fcf6ef">
 <title>Mundo B + D · Bruno &amp; Dhennifer</title>
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="apple-touch-icon" href="/icon-192.png">
-<link rel="icon" href="/icon-192.png">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<link rel="icon" href="./icon-192.png">
 <style>
 :root{--paper:#fcf6ef;--ink:#411f23;--rose:#872d45;--dust:#f4e1dc;--line:#e8d6ce;--muted:#705454}
 *{box-sizing:border-box}[hidden]{display:none!important}html{scroll-behavior:smooth}body{margin:0;color:var(--ink);background:var(--paper);font:16px/1.6 system-ui,sans-serif}button,input,textarea,select{font:inherit}button{cursor:pointer}a{color:inherit;text-decoration:none}button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #b45d72;outline-offset:3px}
@@ -32,7 +32,7 @@ dialog{width:min(555px,calc(100% - 24px));max-height:calc(100dvh - 26px);overflo
 <main>
 <section class="hero"><div class="wrap">
 <div><div class="eyebrow">Bruno &amp; Dhennifer</div><h1>Mundo <em>B + D</em></h1><p>Tudo que a gente já viveu e o que ainda sonha viver.</p><a class="btn" href="#historia">Ver nossa história</a></div>
-<div class="collage"><figure class="polaroid" style="margin:0"><div class="tape" aria-hidden="true"></div><div id="cover"><img src="/cover.webp" alt="Praia ao pôr do sol, imagem ilustrativa" onerror="this.parentElement.innerHTML='<div class=placeholder aria-hidden=true>♡</div>'"></div><figcaption id="cover-caption">Bruno &amp; Dhennifer</figcaption></figure><button class="btn outline cover-control" id="choose-cover" hidden>Escolher fotos da capa</button><span class="note" aria-hidden="true">Sempre nós dois ♡</span></div>
+<div class="collage"><figure class="polaroid" style="margin:0"><div class="tape" aria-hidden="true"></div><div id="cover"><img src="./cover.webp" alt="Praia ao pôr do sol, imagem ilustrativa" onerror="this.parentElement.innerHTML='<div class=placeholder aria-hidden=true>♡</div>'"></div><figcaption id="cover-caption">Bruno &amp; Dhennifer</figcaption></figure><button class="btn outline cover-control" id="choose-cover" hidden>Escolher fotos da capa</button><span class="note" aria-hidden="true">Sempre nós dois ♡</span></div>
 </div></section>
 <section class="story" id="historia"><div class="wrap"><div class="sectionhead"><div><h2>Linha do tempo</h2><p>Os nossos momentos, do mais recente ao mais antigo.</p></div><button class="btn outline" data-add>+ Nova lembrança</button></div><aside id="anniversary" class="anniversary" hidden></aside><div id="timeline" aria-live="polite">Carregando lembranças…</div></div></section>
 <section class="extra" id="cartinhas"><div class="wrap"><div class="sectionhead"><div><h2>Cartinhas</h2><p>Palavras que a gente quer guardar.</p></div><button class="btn outline" data-note="letters">+ Escrever cartinha</button></div><div class="cards" id="letters"></div></div></section>
@@ -55,7 +55,8 @@ dialog{width:min(555px,calc(100% - 24px));max-height:calc(100dvh - 26px);overflo
 <dialog id="note-editor" aria-labelledby="note-title"><div class="dialoghead"><h2 id="note-title"></h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div>
 <form id="note-form"><label>Título<input name="title" maxlength="90" required></label><div id="note-author"><label>Quem escreveu?<select name="author"><option>Bruno</option><option>Dhennifer</option></select></label></div><label><span id="note-label">Mensagem</span><textarea name="text" maxlength="3000" rows="5"></textarea></label><p class="error" role="status" hidden></p><button class="btn" type="submit">Salvar</button></form></dialog>
 <dialog id="cover-editor" aria-labelledby="cover-title"><div class="dialoghead"><h2 id="cover-title">Fotos da capa</h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div><form id="cover-form"><p>Escolha até três fotos. Se deixar em branco, entram as fotos mais recentes.</p><div class="cover-options" id="cover-options"></div><p class="error" role="status" hidden></p><button class="btn" type="submit">Salvar capa</button></form></dialog>
-<dialog id="install-help" aria-labelledby="install-title"><div class="dialoghead"><h2 id="install-title">Instalar no celular</h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div><p><strong>iPhone</strong> · Abra este link no Safari, toque em <strong>Compartilhar</strong> e escolha <strong>Adicionar à Tela de Início</strong>.</p><p><strong>Android</strong> · Abra no Chrome, toque nos três pontos e escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p><p>O ícone abre o álbum online com a mesma conta usada no site.</p></dialog>
+<dialog id="install-help" aria-labelledby="install-title"><div class="dialoghead"><h2 id="install-title">Instalar no celular</h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div><p><strong>iPhone</strong> · Abra este link no Safari, toque em <strong>Compartilhar</strong> e escolha <strong>Adicionar à Tela de Início</strong>.</p><p><strong>Android</strong> · Abra no Chrome, toque nos três pontos e escolha <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p><p>O ícone abre o álbum online. Use o código de acesso que vocês compartilham.</p></dialog>
+<dialog id="access-editor" aria-labelledby="access-title"><h2 id="access-title" style="font-size:2.25rem">Entrar no Mundo B + D</h2><p>Digite o código do casal para abrir o álbum.</p><form id="access-form"><label>Código do álbum<input name="code" type="password" maxlength="256" required></label><p class="error" role="status" hidden></p><button class="btn" type="submit">Abrir álbum</button></form></dialog>
 <script>/*__BROWSER__*/</script>
 </body>
 </html>

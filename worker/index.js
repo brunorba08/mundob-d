@@ -1,6 +1,7 @@
 const page = /*__PAGE__*/ null;
 const cover = /*__COVER__*/ null;
 const icons = /*__ICONS__*/ null;
+const pagesOrigin = 'https://brunorba08.github.io';
 const mb = 1024 * 1024;
 const imageTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
 const videoTypes = new Set(['video/mp4', 'video/quicktime', 'video/webm']);
@@ -131,7 +132,16 @@ const manifest = {
   icons:[192,512].map(size => ({src:'/icon-'+size+'.png',sizes:size+'x'+size,type:'image/png',purpose:'any maskable'}))
 };
 
-export default {
+async function secretMatches(expected,provided) {
+  if (!expected || !provided || provided.length > 256) return false;
+  const encoder = new TextEncoder();
+  const digests = await Promise.all([expected,provided].map(value=>crypto.subtle.digest('SHA-256',encoder.encode(value))));
+  const left = new Uint8Array(digests[0]);
+  const right = new Uint8Array(digests[1]);
+  return left.reduce((difference,byte,index)=>difference | (byte ^ right[index]),0) === 0;
+}
+
+const app = {
   async fetch(request,env) {
     const url = new URL(request.url);
     const path = url.pathname;
@@ -152,7 +162,7 @@ export default {
         return json({memories:memories.sort((a,b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title)),letters:letters.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),plans:plans.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),cover:coverObject ? await coverObject.json() : [],today:today()});
       }
       if (read && path === '/api/memories') return json((await records(bucket,'memories/')).sort((a,b)=>b.date.localeCompare(a.date)));
-      if (!read && request.headers.get('Origin') !== url.origin) return json({error:'Envie pela página do álbum.'},403);
+      if (!read && ![url.origin,pagesOrigin].includes(request.headers.get('Origin'))) return json({error:'Envie pela página do álbum.'},403);
       if (request.method === 'POST' && path === '/api/memories') return await saveMemory(request,bucket);
       const memory = new RegExp('^/api/memories/('+idPattern+')$').exec(path);
       if (request.method === 'PUT' && memory) return await saveMemory(request,bucket,memory[1]);
@@ -184,5 +194,27 @@ export default {
       console.error(error);
       return json({error:'Não foi possível acessar o álbum agora. Tente novamente.'},500);
     }
+  }
+};
+
+export default {
+  async fetch(request,env) {
+    const url = new URL(request.url);
+    if (!url.pathname.startsWith('/api/')) return app.fetch(request,env);
+    const origin = request.headers.get('Origin');
+    const cors = {
+      'Access-Control-Allow-Origin':pagesOrigin,
+      'Access-Control-Allow-Methods':'GET, POST, PUT, OPTIONS',
+      'Access-Control-Allow-Headers':'Authorization, Content-Type, Range',
+      'Vary':'Origin'
+    };
+    if (request.method === 'OPTIONS' && origin === pagesOrigin) return new Response(null,{status:204,headers:cors});
+    const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+    const allowed = await secretMatches(env.ALBUM_ACCESS_CODE,token);
+    const result = allowed ? await app.fetch(request,env) : json({error:'Digite o código de acesso do álbum.'},401);
+    const headers = new Headers(result.headers);
+    headers.set('Cache-Control','no-store');
+    if (origin === pagesOrigin) Object.entries(cors).forEach(([key,value])=>headers.set(key,value));
+    return new Response(result.body,{status:result.status,headers});
   }
 };
