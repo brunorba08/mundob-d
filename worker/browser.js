@@ -407,62 +407,22 @@ window.addEventListener('beforeinstallprompt',event=>{
 });
 window.addEventListener('appinstalled',()=>{ $('#install').hidden = true; });
 if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) $('#install').hidden = true;
-$('#install').addEventListener('click',async ()=>{
-  if (!installPrompt) return $('#install-help').showModal();
+$('#install').addEventListener('click',()=>{
+  $('#install-direct').hidden = !installPrompt;
+  $('#install-help').showModal();
+});
+$('#install-direct').addEventListener('click',async ()=>{
   const prompt = installPrompt;
+  if (!prompt) return;
   installPrompt = null;
-  try { await prompt.prompt(); }
-  catch { $('#install-help').showModal(); }
+  $('#install-direct').hidden = true;
+  try {
+    await prompt.prompt();
+    if ((await prompt.userChoice).outcome === 'accepted') $('#install-help').close();
+  } catch { /* Manual instructions remain available. */ }
 });
 loadAlbum();
 
-
-const songLink = $('#song-link');
-const songForm = $('#song-form');
-const songStatus = $('#song-status');
-
-function spotifyTrack(value) {
-  try {
-    const url = new URL(value);
-    const match = url.pathname.match(/^\/(?:intl-[a-z-]+\/)?track\/([a-zA-Z0-9]{22})\/?$/);
-    if (url.origin === 'https://open.spotify.com' && match) return url.origin+'/track/'+match[1];
-  } catch {}
-  return '';
-}
-
-function showSong(title,track) {
-  songLink.textContent = songForm.elements.title.value = title;
-  songLink.href = songForm.elements.track.value = track;
-}
-
-showSong(songLink.textContent,songLink.href);
-api('song').then(saved=>{
-  const track = spotifyTrack(saved?.track);
-  if (track && typeof saved.title === 'string') showSong(saved.title,track);
-}).catch(()=>{});
-
-songForm.addEventListener('submit',async event=>{
-  event.preventDefault();
-  const title = songForm.elements.title.value.trim();
-  const track = spotifyTrack(songForm.elements.track.value.trim());
-  if (!title || !track) {
-    songStatus.textContent = 'Informe o nome da música e cole o link de uma faixa do Spotify.';
-    return;
-  }
-  const button = songForm.querySelector('button');
-  button.disabled = true;
-  try {
-    const saved = await api('song',{method:'PUT',headers:{
-      'Content-Type':'application/json',
-      'X-Album-Code':songForm.elements.editPassword.value,
-      'X-Album-Author':songForm.elements.editAuthor.value
-    },body:JSON.stringify({title,track})});
-    showSong(saved.title,saved.track);
-    songForm.elements.editPassword.value = '';
-    songStatus.textContent = 'Música salva no álbum.';
-  } catch (error) { songStatus.textContent = error.message; }
-  finally { button.disabled = false; }
-});
 
 const installedAlbum = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
 if (installedAlbum && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
