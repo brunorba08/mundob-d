@@ -43,7 +43,7 @@ dialog{width:min(555px,calc(100% - 24px));max-height:calc(100dvh - 26px);overflo
 <section class="story" id="historia"><div class="wrap"><div class="sectionhead"><div><h2>Linha do tempo</h2><p>Os nossos momentos, do mais recente ao mais antigo.</p></div><button class="btn outline" data-add>+ Nova lembrança</button></div><aside id="anniversary" class="anniversary" hidden></aside><div id="timeline" aria-live="polite">Carregando lembranças…</div><button type="button" class="btn outline timeline-toggle" id="timeline-toggle" aria-controls="timeline" aria-expanded="false" hidden>Ver todas as lembranças</button></div></section>
 <section class="extra" id="cartinhas"><div class="wrap"><div class="sectionhead"><div><h2>Cartinhas</h2><p>Palavras que a gente quer guardar.</p></div><button class="btn outline" data-note="letters">+ Escrever cartinha</button></div><div class="cards" id="letters"></div></div></section>
 <section class="extra" id="planos"><div class="wrap"><div class="sectionhead"><div><h2>Ainda vamos viver</h2><p>Planos que um dia vão virar lembranças.</p></div><button class="btn outline" data-note="plans">+ Adicionar plano</button></div><div class="cards" id="plans"></div></div></section>
-<section class="extra" id="musica"><div class="wrap"><h2>A música que me faz pensar em você agora</h2><a class="btn outline" href="https://open.spotify.com/track/5w11scFjudri4rCcfd1ik0" target="_blank" rel="noopener">Bengala e Crochê · Maiara &amp; Maraisa</a></div></section>
+<section class="extra" id="musica"><div class="wrap"><h2>A música que me faz pensar em você agora</h2><a class="btn outline" id="song-link" href="https://open.spotify.com/track/5w11scFjudri4rCcfd1ik0" target="_blank" rel="noopener">Bengala e Crochê · Maiara &amp; Maraisa</a><details style="margin-top:14px;max-width:440px"><summary>Editar música</summary><form id="song-form"><label>Nome da música<input name="title" maxlength="100" required></label><label>Link da faixa no Spotify<input name="track" type="url" required></label><button class="btn outline" type="submit">Salvar música</button><p id="song-status" role="status"></p></form></details></div></section>
 </main>
 <footer><button class="btn outline footer-install" id="install">Instalar no celular</button><p>Bruno <span class="heart" aria-hidden="true">♡</span> Dhennifer</p></footer>
 <dialog id="editor" aria-labelledby="dialog-title"><div class="dialoghead"><h2 id="dialog-title">Nova lembrança</h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div>
@@ -476,6 +476,47 @@ $('#install').addEventListener('click',async ()=>{
 });
 loadAlbum();
 
+
+const songLink = $('#song-link');
+const songForm = $('#song-form');
+const songStatus = $('#song-status');
+const songKey = 'mundo-b-d-featured-song';
+
+function spotifyTrack(value) {
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/^\/(?:intl-[a-z-]+\/)?track\/([a-zA-Z0-9]{22})\/?$/);
+    if (url.origin === 'https://open.spotify.com' && match) return url.origin+'/track/'+match[1];
+  } catch {}
+  return '';
+}
+
+function showSong(title,track) {
+  songLink.textContent = songForm.elements.title.value = title;
+  songLink.href = songForm.elements.track.value = track;
+}
+
+showSong(songLink.textContent,songLink.href);
+try {
+  const saved = JSON.parse(localStorage.getItem(songKey));
+  const track = spotifyTrack(saved?.track);
+  if (track && typeof saved.title === 'string' && saved.title.trim()) showSong(saved.title,track);
+} catch {}
+
+songForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  const title = songForm.elements.title.value.trim();
+  const track = spotifyTrack(songForm.elements.track.value.trim());
+  if (!title || !track) {
+    songStatus.textContent = 'Informe o nome da música e cole o link de uma faixa do Spotify.';
+    return;
+  }
+  showSong(title,track);
+  try {
+    localStorage.setItem(songKey,JSON.stringify({title,track}));
+    songStatus.textContent = 'Música salva neste navegador.';
+  } catch { songStatus.textContent = 'Música atualizada nesta visita.'; }
+});
 </script>
 </body>
 </html>
