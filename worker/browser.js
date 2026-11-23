@@ -89,17 +89,19 @@ function mediaUrl(path) {
 function loadImage(image,path) {
   mediaUrl(path).then(url=>{ image.src = url; }).catch(()=>{});
 }
-function photoButton(src,label,lazy=false) {
+function photoButton(src,label,lazy=false,illustration=false) {
   const button = action('',()=>{
     const preview = $('#viewer-photo');
-    loadImage(preview,src);
+    if (illustration) preview.src = src;
+    else loadImage(preview,src);
     preview.alt = label;
-    $('#viewer-download').replaceChildren(downloadButton(src,label));
+    $('#viewer-download').replaceChildren(downloadButton(src,label,illustration));
     $('#viewer').showModal();
   },'photo-button');
   button.setAttribute('aria-label','Ampliar foto · '+label);
   const image = make('img');
-  loadImage(image,src);
+  if (illustration) image.src = src;
+  else loadImage(image,src);
   image.alt = label;
   if (lazy) image.loading = 'lazy';
   button.append(image);
@@ -145,15 +147,12 @@ function renderCover() {
   if (featured.length) {
     cover.replaceChildren(...featured.map(({src,label})=>{
       const photo = make('div');
-      photo.append(photoButton(src,label),downloadButton(src,label));
+      photo.append(photoButton(src,label));
       return photo;
     }));
     $('#cover-caption').textContent = 'Bruno & Dhennifer';
-  } else if (!cover.firstElementChild || cover.querySelector('button')) {
-    const img = make('img');
-    img.src = './cover.webp';
-    img.alt = 'Praia ao pôr do sol, imagem ilustrativa';
-    cover.replaceChildren(img,downloadButton('./cover.webp','Praia ao pôr do sol',true));
+  } else {
+    cover.replaceChildren(photoButton('./cover.webp','Praia ao pôr do sol',false,true));
   }
 }
 
@@ -198,7 +197,6 @@ function renderTimeline() {
         const caption = memory.captions?.[src];
         figure.append(photoButton(src,caption || memory.title+' · foto '+(index+1),true));
         if (caption) figure.append(make('figcaption',caption));
-        figure.append(downloadButton(src,caption || memory.title+' - foto '+(index+1)));
         grid.append(figure);
       });
       card.append(grid);
@@ -412,3 +410,109 @@ $('#install').addEventListener('click',async ()=>{
   catch { $('#install-help').showModal(); }
 });
 loadAlbum();
+
+const defaultSong = {id:'5w11scFjudri4rCcfd1ik0',start:52};
+const songStorage = 'mundo-b-d-song';
+let currentSong = defaultSong;
+try {
+  const stored = JSON.parse(localStorage.getItem(songStorage));
+  if (/^[a-zA-Z0-9]{22}$/.test(stored?.id) && Number.isInteger(stored.start) && stored.start >= 0) currentSong = stored;
+} catch {}
+
+const songForm = $('#song-form');
+const songButton = $('#song-play');
+const songLink = $('#song-link');
+const songStatus = $('#song-status');
+let spotify;
+let spotifyApi;
+let startPending = false;
+let playing = false;
+let clipEnded = false;
+
+function songUri() { return 'spotify:track:'+currentSong.id; }
+function spotifyLink() { return 'https://open.spotify.com/track/'+currentSong.id; }
+function updateSongForm() {
+  songLink.href = spotifyLink();
+  songForm.elements.track.value = spotifyLink();
+  songForm.elements.start.value = currentSong.start;
+}
+
+function playClip() {
+  if (!spotify) return;
+  startPending = true;
+  clipEnded = false;
+  spotify.seek(currentSong.start);
+  spotify.play();
+}
+
+function updatePlayback({data}) {
+  if (data.playingURI && data.playingURI !== songUri()) return;
+  if (data.isBuffering) return;
+  playing = !data.isPaused;
+  songButton.textContent = playing ? 'Pausar música' : 'Tocar refrão';
+  if (!playing) return;
+  const hasFullTrack = data.duration > (currentSong.start + 1) * 1000;
+  const start = hasFullTrack ? currentSong.start : 0;
+  if (startPending) {
+    startPending = false;
+    if (hasFullTrack && data.position < start * 1000 - 500) spotify.seek(start);
+  }
+  if (!clipEnded && data.position >= (start + 30) * 1000) {
+    clipEnded = true;
+    spotify.pause();
+  }
+}
+
+function mountSpotify() {
+  songButton.disabled = true;
+  playing = false;
+  songButton.textContent = 'Tocar refrão';
+  spotify?.destroy();
+  spotify = undefined;
+  const host = make('div');
+  $('#spotify-player').replaceChildren(host);
+  spotifyApi.createController(host,{uri:songUri(),width:'100%',height:152},controller=>{
+    spotify = controller;
+    spotify.addListener('playback_update',updatePlayback);
+    spotify.addListener('ready',()=>{
+      songButton.disabled = false;
+      playClip();
+    });
+  });
+}
+window.onSpotifyIframeApiReady = api=>{
+  spotifyApi = api;
+  mountSpotify();
+};
+
+songButton.addEventListener('click',()=>{
+  if (playing) spotify.pause();
+  else playClip();
+});
+songForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  let track;
+  try { track = new URL(songForm.elements.track.value.trim()); } catch {}
+  const match = track?.protocol === 'https:' && track.hostname === 'open.spotify.com'
+    ? track.pathname.match(/^\/(?:intl-[a-z-]+\/)?track\/([a-zA-Z0-9]{22})\/?$/)
+    : null;
+  const start = songForm.elements.start.valueAsNumber;
+  if (!match || !Number.isInteger(start) || start < 0) {
+    songStatus.textContent = 'Cole o link de uma faixa do Spotify e informe o início em segundos.';
+    return;
+  }
+  const changedTrack = currentSong.id !== match[1];
+  currentSong = {id:match[1],start};
+  try {
+    localStorage.setItem(songStorage,JSON.stringify(currentSong));
+    songStatus.textContent = 'Música salva neste navegador.';
+  } catch { songStatus.textContent = 'Música alterada nesta visita.'; }
+  updateSongForm();
+  if (changedTrack && spotifyApi) mountSpotify();
+  else playClip();
+});
+updateSongForm();
+const spotifyScript = make('script');
+spotifyScript.src = 'https://open.spotify.com/embed/iframe-api/v1';
+spotifyScript.async = true;
+document.body.append(spotifyScript);
