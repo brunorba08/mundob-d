@@ -205,11 +205,11 @@ export default {
     const cors = {
       'Access-Control-Allow-Origin':pagesOrigin,
       'Access-Control-Allow-Methods':'GET, POST, PUT, OPTIONS',
-      'Access-Control-Allow-Headers':'Authorization, Content-Type, Range',
+      'Access-Control-Allow-Headers':'X-Album-Code, Content-Type, Range',
       'Vary':'Origin'
     };
     if (request.method === 'OPTIONS' && origin === pagesOrigin) return new Response(null,{status:204,headers:cors});
-    const token = request.headers.get('Authorization')?.match(/^Bearer (.+)$/)?.[1];
+    const token = request.headers.get('X-Album-Code');
     const allowed = await secretMatches(env.ALBUM_ACCESS_CODE,token);
     const result = allowed ? await app.fetch(request,env) : json({error:'Digite o código de acesso do álbum.'},401);
     const headers = new Headers(result.headers);
