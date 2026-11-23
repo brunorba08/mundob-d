@@ -1,3 +1,5 @@
+/*__PUSH__*/
+const serviceWorker = /*__SW__*/ null;
 const page = /*__PAGE__*/ null;
 const cover = /*__COVER__*/ null;
 const icons = /*__ICONS__*/ null;
@@ -142,7 +144,7 @@ async function secretMatches(expected,provided) {
 }
 
 const app = {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     const url = new URL(request.url);
     const path = url.pathname;
     const bucket = env.BUCKET;
@@ -153,7 +155,7 @@ const app = {
       if (read && path === '/') return asset(page,'text/html; charset=utf-8');
       if (read && path === '/cover.webp' && cover) return asset(binary(cover),'image/webp');
       if (read && path === '/manifest.webmanifest') return asset(JSON.stringify(manifest),'application/manifest+json');
-      if (read && path === '/sw.js') return asset("self.addEventListener('install',()=>self.skipWaiting()); self.addEventListener('activate',event=>event.waitUntil(self.clients.claim())); self.addEventListener('fetch',()=>{});",'text/javascript');
+      if (read && path === '/sw.js') return asset(serviceWorker,'text/javascript');
       const icon = /^\/icon-(192|512)\.png$/.exec(path);
       if (read && icon) return asset(binary(icons[icon[1]]),'image/png');
       if (read && new RegExp('^/api/(photos/'+idPattern+'/[0-4]|videos/'+idPattern+')$').test(path)) return await serveMedia(request,bucket,path.slice(5));
@@ -162,7 +164,22 @@ const app = {
         return json({memories:memories.sort((a,b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title)),letters:letters.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),plans:plans.sort((a,b)=>b.createdAt.localeCompare(a.createdAt)),cover:coverObject ? await coverObject.json() : [],today:today()});
       }
       if (read && path === '/api/memories') return json((await records(bucket,'memories/')).sort((a,b)=>b.date.localeCompare(a.date)));
+      if (read && path === '/api/song') {
+        const saved = await bucket.get('settings/song');
+        return json(saved ? await saved.json() : null);
+      }
       if (!read && ![url.origin,pagesOrigin].includes(request.headers.get('Origin'))) return json({error:'Envie pela página do álbum.'},403);
+      if (request.method === 'PUT' && path === '/api/song') {
+        if (Number(request.headers.get('Content-Length')) > 4096) return json({error:'A música informada é inválida.'},400);
+        const song = await request.json().catch(()=>null);
+        if (typeof song?.title !== 'string' || !song.title.trim() || song.title.length > 100 ||
+            typeof song.track !== 'string' || !/^https:\/\/open\.spotify\.com\/track\/[a-zA-Z0-9]{22}$/.test(song.track)) {
+          return json({error:'Informe o nome da música e o link de uma faixa do Spotify.'},400);
+        }
+        const value = {title:song.title.trim(),track:song.track};
+        await bucket.put('settings/song',JSON.stringify(value));
+        return json(value);
+      }
       if (request.method === 'POST' && path === '/api/memories') return await saveMemory(request,bucket);
       const memory = new RegExp('^/api/memories/('+idPattern+')$').exec(path);
       if (request.method === 'PUT' && memory) return await saveMemory(request,bucket,memory[1]);
@@ -198,20 +215,37 @@ const app = {
 };
 
 export default {
-  async fetch(request,env) {
+  async fetch(request,env,ctx) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith('/api/')) return app.fetch(request,env);
     const origin = request.headers.get('Origin');
     const cors = {
       'Access-Control-Allow-Origin':pagesOrigin,
       'Access-Control-Allow-Methods':'GET, POST, PUT, OPTIONS',
-      'Access-Control-Allow-Headers':'X-Album-Code, Content-Type, Range',
+      'Access-Control-Allow-Headers':'X-Album-Code, X-Album-Author, Content-Type, Range',
       'Vary':'Origin'
     };
     if (request.method === 'OPTIONS' && origin === pagesOrigin) return new Response(null,{status:204,headers:cors});
     const token = request.headers.get('X-Album-Code');
     const allowed = request.method === 'GET' || await secretMatches(env.ALBUM_ACCESS_CODE,token);
-    const result = allowed ? await app.fetch(request,env) : json({error:'Senha incorreta. Confira a senha para salvar.'},401);
+    const editing = request.method === 'POST' || request.method === 'PUT';
+    const authorHeader = request.headers.get('X-Album-Author');
+    const author = authorHeader === 'denifer' ? 'Dênifer' : authorHeader === 'bruno' ? 'Bruno' : null;
+    let result;
+    if (!allowed) result = json({error:'Senha incorreta. Confira a senha para salvar.'},401);
+    else if (request.method === 'GET' && url.pathname === '/api/push-key') result = json({key:env.PUSH_PUBLIC_KEY ?? null});
+    else if (request.method === 'POST' && url.pathname === '/api/push') {
+      if (![url.origin,pagesOrigin].includes(origin)) result = json({error:'Envie pela página do álbum.'},403);
+      else {
+        try { result = await savePushSubscription(request,env); }
+        catch { result = json({error:'Não foi possível ativar as notificações.'},500); }
+      }
+    }
+    else if (editing && authorHeader && !author) result = json({error:'Escolha quem fez a alteração.'},400);
+    else {
+      result = await app.fetch(request,env);
+      if (editing && result.ok && pushRoles.includes(author)) ctx?.waitUntil(notifyOther(env,url.pathname,request.method,author));
+    }
     const headers = new Headers(result.headers);
     headers.set('Cache-Control','no-store');
     if (origin === pagesOrigin) Object.entries(cors).forEach(([key,value])=>headers.set(key,value));

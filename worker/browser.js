@@ -1,5 +1,6 @@
 const backend = document.documentElement.dataset.backend ?? '';
 let accessCode = '';
+let editAuthor = '';
 try { localStorage.removeItem('mundo-b-d-access'); } catch {}
 const mediaFiles = new Map();
 const $ = selector => document.querySelector(selector);
@@ -51,7 +52,8 @@ function showError(form,message='') {
 }
 async function api(path,options) {
   const headers = new Headers(options?.headers);
-  if (accessCode) headers.set('X-Album-Code',accessCode);
+  if (accessCode && !headers.has('X-Album-Code')) headers.set('X-Album-Code',accessCode);
+  if (editAuthor && !headers.has('X-Album-Author')) headers.set('X-Album-Author',editAuthor);
   const response = await fetch(backend+'/api/'+path,{...options,headers});
   let data;
   try { data = await response.json(); }
@@ -358,7 +360,9 @@ function onSubmit(form,submit) {
     showError(form);
     try {
       accessCode = form.elements.editPassword.value;
+      editAuthor = form.elements.editAuthor.value;
       const fields = new FormData(form);
+      fields.delete('editAuthor');
       fields.delete('editPassword');
       await submit(fields);
       form.elements.editPassword.value = '';
@@ -368,6 +372,7 @@ function onSubmit(form,submit) {
       showError(form,error.message);
     } finally {
       accessCode = '';
+      editAuthor = '';
       button.textContent = original;
       button.disabled = close.disabled = false;
     }
@@ -415,7 +420,6 @@ loadAlbum();
 const songLink = $('#song-link');
 const songForm = $('#song-form');
 const songStatus = $('#song-status');
-const songKey = 'mundo-b-d-featured-song';
 
 function spotifyTrack(value) {
   try {
@@ -432,13 +436,12 @@ function showSong(title,track) {
 }
 
 showSong(songLink.textContent,songLink.href);
-try {
-  const saved = JSON.parse(localStorage.getItem(songKey));
+api('song').then(saved=>{
   const track = spotifyTrack(saved?.track);
-  if (track && typeof saved.title === 'string' && saved.title.trim()) showSong(saved.title,track);
-} catch {}
+  if (track && typeof saved.title === 'string') showSong(saved.title,track);
+}).catch(()=>{});
 
-songForm.addEventListener('submit',event=>{
+songForm.addEventListener('submit',async event=>{
   event.preventDefault();
   const title = songForm.elements.title.value.trim();
   const track = spotifyTrack(songForm.elements.track.value.trim());
@@ -446,9 +449,76 @@ songForm.addEventListener('submit',event=>{
     songStatus.textContent = 'Informe o nome da música e cole o link de uma faixa do Spotify.';
     return;
   }
-  showSong(title,track);
+  const button = songForm.querySelector('button');
+  button.disabled = true;
   try {
-    localStorage.setItem(songKey,JSON.stringify({title,track}));
-    songStatus.textContent = 'Música salva neste navegador.';
-  } catch { songStatus.textContent = 'Música atualizada nesta visita.'; }
+    const saved = await api('song',{method:'PUT',headers:{
+      'Content-Type':'application/json',
+      'X-Album-Code':songForm.elements.editPassword.value,
+      'X-Album-Author':songForm.elements.editAuthor.value
+    },body:JSON.stringify({title,track})});
+    showSong(saved.title,saved.track);
+    songForm.elements.editPassword.value = '';
+    songStatus.textContent = 'Música salva no álbum.';
+  } catch (error) { songStatus.textContent = error.message; }
+  finally { button.disabled = false; }
 });
+
+const installedAlbum = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (installedAlbum && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) {
+  const settings = $('#push-settings');
+  const dialog = $('#push-dialog');
+  const pushForm = $('#push-form');
+  const status = $('#push-status');
+  const off = $('#push-off');
+  const profileKey = 'mundo-b-d-push-role';
+  let profile = '';
+  try { profile = localStorage.getItem(profileKey) || ''; } catch {}
+  pushForm.elements.role.value = profile;
+  settings.hidden = false;
+  settings.addEventListener('click',async ()=>{
+    dialog.showModal();
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      off.hidden = !(await registration.pushManager.getSubscription());
+    } catch {}
+  });
+  pushForm.addEventListener('submit',async event=>{
+    event.preventDefault();
+    const submit = pushForm.querySelector('button[type=submit]');
+    submit.disabled = true;
+    let newSubscription;
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') throw new Error('Permita notificações nos ajustes do celular para ativar os avisos.');
+      const {key} = await api('push-key');
+      if (!key) throw new Error('As notificações estão temporariamente indisponíveis.');
+      const registration = await navigator.serviceWorker.ready;
+      const applicationServerKey = Uint8Array.from(atob(key.replaceAll('-','+').replaceAll('_','/')),char=>char.charCodeAt(0));
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey});
+        newSubscription = subscription;
+      }
+      const role = pushForm.elements.role.value;
+      await api('push',{method:'POST',headers:{'Content-Type':'application/json','X-Album-Code':pushForm.elements.password.value},body:JSON.stringify({role,subscription:subscription.toJSON()})});
+      try { localStorage.setItem(profileKey,role); } catch {}
+      pushForm.elements.password.value = '';
+      off.hidden = false;
+      status.textContent = 'Avisos ativados para '+role+'.';
+    } catch (error) {
+      if (newSubscription) await newSubscription.unsubscribe().catch(()=>{});
+      status.textContent = error.message;
+    } finally { submit.disabled = false; }
+  });
+  off.addEventListener('click',async ()=>{
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription && !await subscription.unsubscribe()) throw new Error();
+      try { localStorage.removeItem(profileKey); } catch {}
+      off.hidden = true;
+      status.textContent = 'Avisos desativados neste celular.';
+    } catch { status.textContent = 'Não foi possível desativar os avisos. Tente novamente.'; }
+  });
+}
