@@ -25,7 +25,12 @@ dialog{width:min(555px,calc(100% - 24px));max-height:calc(100dvh - 26px);overflo
 .extra{padding-block:53px;border-top:1px solid var(--line);scroll-margin-top:14px}.extra:nth-of-type(even){background:#fffaf6}.extra h2{font-size:clamp(2.5rem,5vw,4rem)}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px}.item{padding:20px;border:1px solid var(--line);border-radius:15px;background:#fffaf6;min-width:0}.item h3{font:1.65rem Georgia;margin:0 0 .6rem;overflow-wrap:anywhere}.item p{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted)}.item small{margin-bottom:8px}.memory h3{overflow-wrap:anywhere}.memory .edit{margin-block:10px 3px}.photos figure{margin:0;min-width:0}.photos button{display:block;width:100%}.photos figcaption{color:var(--muted);font-size:.9rem;margin:4px 0;overflow-wrap:anywhere}.memory video{display:block;width:min(100%,520px);max-height:400px;background:#35141a;border-radius:12px;margin-top:12px}.anniversary{padding:17px 20px;background:#f8e8e1;border:1px solid var(--line);border-radius:12px;margin:0 0 29px}.anniversary h3{font:1.65rem Georgia;margin:0 0 6px}.anniversary a,.plan-link{color:var(--rose);text-decoration:underline}
 .cover-options,.caption-options{display:grid;gap:12px;margin-bottom:14px}.cover-option{display:grid;grid-template-columns:auto 68px 1fr;gap:10px;align-items:center;cursor:pointer}.cover-option img{width:68px;height:52px;object-fit:cover;border-radius:6px}.check{width:auto;display:inline-block;accent-color:var(--rose);margin:0}.caption-row{padding:10px;background:var(--paper);border-radius:10px}.caption-row img{width:60px;height:48px;object-fit:cover;vertical-align:middle;border-radius:5px;margin:0 8px}.caption-row label{margin:4px 0}.footer-install{margin:0 0 10px}footer p{margin:0}
 @media(max-width:680px){nav{height:auto;min-height:65px;padding-block:11px;flex-wrap:wrap}.navlinks{order:3;width:100%;justify-content:flex-start;gap:15px}.navlinks a{font-size:.875rem}.hero h1{font-size:clamp(3.3rem,14vw,4.35rem)}.cover-grid{gap:6px}}
-.photo-download{display:block;margin:7px 0 0;padding:5px 9px;border:1px solid currentColor;border-radius:8px;background:transparent;color:var(--rose);font:inherit;font-size:.85rem}.cover-grid>div:first-child{grid-column:1/-1}.cover-grid .photo-download,.photos .photo-download{padding:5px 9px;border:1px solid currentColor;background:transparent}.timeline-toggle{margin-top:20px}.song-player{display:block;width:100%;max-width:600px;aspect-ratio:16/9;border:0;border-radius:14px;background:var(--dust)}
+.photo-download{display:block;margin:7px 0 0;padding:5px 9px;border:1px solid currentColor;border-radius:8px;background:transparent;color:var(--rose);font:inherit;font-size:.85rem}.cover-grid>div:first-child{grid-column:1/-1}.cover-grid .photo-download,.photos .photo-download{padding:5px 9px;border:1px solid currentColor;background:transparent}.timeline-toggle{margin-top:20px}.song-player{display:block;width:100%;max-width:600px;min-height:152px;border:0;border-radius:14px;background:var(--dust)}
+
+.song-play{position:fixed;z-index:5;right:16px;bottom:16px;box-shadow:0 4px 14px #43202b38}
+.song-editor{margin-top:15px;max-width:600px}.song-editor summary{cursor:pointer;color:var(--rose)}
+.song-editor form{margin-top:12px}.song-editor label{display:block;margin-bottom:10px}
+#viewer-download .photo-download{margin:10px auto 0}
 </style>
 </head>
 <body>
@@ -33,13 +38,18 @@ dialog{width:min(555px,calc(100% - 24px));max-height:calc(100dvh - 26px);overflo
 <main>
 <section class="hero"><div class="wrap">
 <div><div class="eyebrow">Bruno &amp; Dhennifer</div><h1>Mundo <em>B + D</em></h1><p>Tudo que a gente já viveu e o que ainda sonha viver.</p><a class="btn" href="#historia">Ver nossa história</a></div>
-<div class="collage"><figure class="polaroid" style="margin:0"><div class="tape" aria-hidden="true"></div><div id="cover"><img src="./cover.webp" alt="Praia ao pôr do sol, imagem ilustrativa" ><a class="photo-download" href="./cover.webp" download="praia-ao-por-do-sol.webp">Baixar foto</a></div><figcaption id="cover-caption">Bruno &amp; Dhennifer</figcaption></figure><button class="btn outline cover-control" id="choose-cover" hidden>Escolher fotos da capa</button><span class="note" aria-hidden="true">Sempre nós dois ♡</span></div>
+<div class="collage"><figure class="polaroid" style="margin:0"><div class="tape" aria-hidden="true"></div><div id="cover"><img src="./cover.webp" alt="Praia ao pôr do sol, imagem ilustrativa" ></div><figcaption id="cover-caption">Bruno &amp; Dhennifer</figcaption></figure><button class="btn outline cover-control" id="choose-cover" hidden>Escolher fotos da capa</button><span class="note" aria-hidden="true">Sempre nós dois ♡</span></div>
 </div></section>
 <section class="story" id="historia"><div class="wrap"><div class="sectionhead"><div><h2>Linha do tempo</h2><p>Os nossos momentos, do mais recente ao mais antigo.</p></div><button class="btn outline" data-add>+ Nova lembrança</button></div><aside id="anniversary" class="anniversary" hidden></aside><div id="timeline" aria-live="polite">Carregando lembranças…</div><button type="button" class="btn outline timeline-toggle" id="timeline-toggle" aria-controls="timeline" aria-expanded="false" hidden>Ver todas as lembranças</button></div></section>
 <section class="extra" id="cartinhas"><div class="wrap"><div class="sectionhead"><div><h2>Cartinhas</h2><p>Palavras que a gente quer guardar.</p></div><button class="btn outline" data-note="letters">+ Escrever cartinha</button></div><div class="cards" id="letters"></div></div></section>
 <section class="extra" id="planos"><div class="wrap"><div class="sectionhead"><div><h2>Ainda vamos viver</h2><p>Planos que um dia vão virar lembranças.</p></div><button class="btn outline" data-note="plans">+ Adicionar plano</button></div><div class="cards" id="plans"></div></div></section>
-<section class="extra" id="musica"><div class="wrap"><div class="sectionhead"><div><h2>Pensando em você</h2><p>Uma música que me faz pensar em você agora.</p></div></div><h3>Bengala e Crochê</h3><p>Maiara &amp; Maraisa</p><iframe class="song-player" src="https://www.youtube-nocookie.com/embed/FMmbG3zjwnM" title="Bengala e Crochê — Maiara &amp; Maraisa" loading="lazy" allow="encrypted-media; picture-in-picture" allowfullscreen></iframe><p><a class="btn outline" href="https://www.youtube.com/watch?v=FMmbG3zjwnM" target="_blank" rel="noopener">Ouvir no YouTube</a></p></div></section>
+<section class="extra" id="musica"><div class="wrap"><div class="sectionhead"><div><h2>Pensando em você</h2><p>Uma música que me faz pensar em você agora.</p></div></div><div class="song-player" id="spotify-player"></div>
+<a class="btn outline" id="song-link" href="https://open.spotify.com/track/5w11scFjudri4rCcfd1ik0" target="_blank" rel="noopener">Abrir no Spotify</a>
+<details class="song-editor"><summary>Editar música</summary>
+<form id="song-form"><label>Link da faixa no Spotify<input type="url" name="track" required></label><label>Início do refrão, em segundos<input type="number" name="start" min="0" step="1" required></label><button class="btn outline" type="submit">Salvar música</button><p id="song-status" role="status"></p></form>
+</details></div></section>
 </main>
+<button type="button" class="btn song-play" id="song-play" disabled>Tocar refrão</button>
 <footer><button class="btn outline footer-install" id="install">Instalar no celular</button><p>Bruno <span class="heart" aria-hidden="true">♡</span> Dhennifer</p></footer>
 <dialog id="editor" aria-labelledby="dialog-title"><div class="dialoghead"><h2 id="dialog-title">Nova lembrança</h2><button class="close" type="button" aria-label="Fechar" data-close>×</button></div>
 <form id="memory-form">
@@ -149,17 +159,19 @@ function mediaUrl(path) {
 function loadImage(image,path) {
   mediaUrl(path).then(url=>{ image.src = url; }).catch(()=>{});
 }
-function photoButton(src,label,lazy=false) {
+function photoButton(src,label,lazy=false,illustration=false) {
   const button = action('',()=>{
     const preview = $('#viewer-photo');
-    loadImage(preview,src);
+    if (illustration) preview.src = src;
+    else loadImage(preview,src);
     preview.alt = label;
-    $('#viewer-download').replaceChildren(downloadButton(src,label));
+    $('#viewer-download').replaceChildren(downloadButton(src,label,illustration));
     $('#viewer').showModal();
   },'photo-button');
   button.setAttribute('aria-label','Ampliar foto · '+label);
   const image = make('img');
-  loadImage(image,src);
+  if (illustration) image.src = src;
+  else loadImage(image,src);
   image.alt = label;
   if (lazy) image.loading = 'lazy';
   button.append(image);
@@ -205,15 +217,12 @@ function renderCover() {
   if (featured.length) {
     cover.replaceChildren(...featured.map(({src,label})=>{
       const photo = make('div');
-      photo.append(photoButton(src,label),downloadButton(src,label));
+      photo.append(photoButton(src,label));
       return photo;
     }));
     $('#cover-caption').textContent = 'Bruno & Dhennifer';
-  } else if (!cover.firstElementChild || cover.querySelector('button')) {
-    const img = make('img');
-    img.src = './cover.webp';
-    img.alt = 'Praia ao pôr do sol, imagem ilustrativa';
-    cover.replaceChildren(img,downloadButton('./cover.webp','Praia ao pôr do sol',true));
+  } else {
+    cover.replaceChildren(photoButton('./cover.webp','Praia ao pôr do sol',false,true));
   }
 }
 
@@ -258,7 +267,6 @@ function renderTimeline() {
         const caption = memory.captions?.[src];
         figure.append(photoButton(src,caption || memory.title+' · foto '+(index+1),true));
         if (caption) figure.append(make('figcaption',caption));
-        figure.append(downloadButton(src,caption || memory.title+' - foto '+(index+1)));
         grid.append(figure);
       });
       card.append(grid);
@@ -472,6 +480,112 @@ $('#install').addEventListener('click',async ()=>{
   catch { $('#install-help').showModal(); }
 });
 loadAlbum();
+
+const defaultSong = {id:'5w11scFjudri4rCcfd1ik0',start:52};
+const songStorage = 'mundo-b-d-song';
+let currentSong = defaultSong;
+try {
+  const stored = JSON.parse(localStorage.getItem(songStorage));
+  if (/^[a-zA-Z0-9]{22}$/.test(stored?.id) && Number.isInteger(stored.start) && stored.start >= 0) currentSong = stored;
+} catch {}
+
+const songForm = $('#song-form');
+const songButton = $('#song-play');
+const songLink = $('#song-link');
+const songStatus = $('#song-status');
+let spotify;
+let spotifyApi;
+let startPending = false;
+let playing = false;
+let clipEnded = false;
+
+function songUri() { return 'spotify:track:'+currentSong.id; }
+function spotifyLink() { return 'https://open.spotify.com/track/'+currentSong.id; }
+function updateSongForm() {
+  songLink.href = spotifyLink();
+  songForm.elements.track.value = spotifyLink();
+  songForm.elements.start.value = currentSong.start;
+}
+
+function playClip() {
+  if (!spotify) return;
+  startPending = true;
+  clipEnded = false;
+  spotify.seek(currentSong.start);
+  spotify.play();
+}
+
+function updatePlayback({data}) {
+  if (data.playingURI && data.playingURI !== songUri()) return;
+  if (data.isBuffering) return;
+  playing = !data.isPaused;
+  songButton.textContent = playing ? 'Pausar música' : 'Tocar refrão';
+  if (!playing) return;
+  const hasFullTrack = data.duration > (currentSong.start + 1) * 1000;
+  const start = hasFullTrack ? currentSong.start : 0;
+  if (startPending) {
+    startPending = false;
+    if (hasFullTrack && data.position < start * 1000 - 500) spotify.seek(start);
+  }
+  if (!clipEnded && data.position >= (start + 30) * 1000) {
+    clipEnded = true;
+    spotify.pause();
+  }
+}
+
+function mountSpotify() {
+  songButton.disabled = true;
+  playing = false;
+  songButton.textContent = 'Tocar refrão';
+  spotify?.destroy();
+  spotify = undefined;
+  const host = make('div');
+  $('#spotify-player').replaceChildren(host);
+  spotifyApi.createController(host,{uri:songUri(),width:'100%',height:152},controller=>{
+    spotify = controller;
+    spotify.addListener('playback_update',updatePlayback);
+    spotify.addListener('ready',()=>{
+      songButton.disabled = false;
+      playClip();
+    });
+  });
+}
+window.onSpotifyIframeApiReady = api=>{
+  spotifyApi = api;
+  mountSpotify();
+};
+
+songButton.addEventListener('click',()=>{
+  if (playing) spotify.pause();
+  else playClip();
+});
+songForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  let track;
+  try { track = new URL(songForm.elements.track.value.trim()); } catch {}
+  const match = track?.protocol === 'https:' && track.hostname === 'open.spotify.com'
+    ? track.pathname.match(/^\/(?:intl-[a-z-]+\/)?track\/([a-zA-Z0-9]{22})\/?$/)
+    : null;
+  const start = songForm.elements.start.valueAsNumber;
+  if (!match || !Number.isInteger(start) || start < 0) {
+    songStatus.textContent = 'Cole o link de uma faixa do Spotify e informe o início em segundos.';
+    return;
+  }
+  const changedTrack = currentSong.id !== match[1];
+  currentSong = {id:match[1],start};
+  try {
+    localStorage.setItem(songStorage,JSON.stringify(currentSong));
+    songStatus.textContent = 'Música salva neste navegador.';
+  } catch { songStatus.textContent = 'Música alterada nesta visita.'; }
+  updateSongForm();
+  if (changedTrack && spotifyApi) mountSpotify();
+  else playClip();
+});
+updateSongForm();
+const spotifyScript = make('script');
+spotifyScript.src = 'https://open.spotify.com/embed/iframe-api/v1';
+spotifyScript.async = true;
+document.body.append(spotifyScript);
 </script>
 </body>
 </html>
