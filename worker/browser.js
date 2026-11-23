@@ -411,3 +411,44 @@ $('#install').addEventListener('click',async ()=>{
 });
 loadAlbum();
 
+
+const songLink = $('#song-link');
+const songForm = $('#song-form');
+const songStatus = $('#song-status');
+const songKey = 'mundo-b-d-featured-song';
+
+function spotifyTrack(value) {
+  try {
+    const url = new URL(value);
+    const match = url.pathname.match(/^\/(?:intl-[a-z-]+\/)?track\/([a-zA-Z0-9]{22})\/?$/);
+    if (url.origin === 'https://open.spotify.com' && match) return url.origin+'/track/'+match[1];
+  } catch {}
+  return '';
+}
+
+function showSong(title,track) {
+  songLink.textContent = songForm.elements.title.value = title;
+  songLink.href = songForm.elements.track.value = track;
+}
+
+showSong(songLink.textContent,songLink.href);
+try {
+  const saved = JSON.parse(localStorage.getItem(songKey));
+  const track = spotifyTrack(saved?.track);
+  if (track && typeof saved.title === 'string' && saved.title.trim()) showSong(saved.title,track);
+} catch {}
+
+songForm.addEventListener('submit',event=>{
+  event.preventDefault();
+  const title = songForm.elements.title.value.trim();
+  const track = spotifyTrack(songForm.elements.track.value.trim());
+  if (!title || !track) {
+    songStatus.textContent = 'Informe o nome da música e cole o link de uma faixa do Spotify.';
+    return;
+  }
+  showSong(title,track);
+  try {
+    localStorage.setItem(songKey,JSON.stringify({title,track}));
+    songStatus.textContent = 'Música salva neste navegador.';
+  } catch { songStatus.textContent = 'Música atualizada nesta visita.'; }
+});
