@@ -1,6 +1,6 @@
 const backend = document.documentElement.dataset.backend ?? '';
 let accessCode = '';
-try { accessCode = localStorage.getItem('mundo-b-d-access') ?? ''; } catch {}
+try { localStorage.removeItem('mundo-b-d-access'); } catch {}
 const mediaFiles = new Map();
 const $ = selector => document.querySelector(selector);
 const editor = $('#editor');
@@ -40,10 +40,6 @@ async function api(path,options) {
   const headers = new Headers(options?.headers);
   if (accessCode) headers.set('X-Album-Code',accessCode);
   const response = await fetch(backend+'/api/'+path,{...options,headers});
-  if (response.status === 401) {
-    const dialog = $('#access-editor');
-    if (!dialog.open) dialog.showModal();
-  }
   let data;
   try { data = await response.json(); }
   catch { throw new Error('Não foi possível acessar o álbum. Confira sua conexão e tente novamente.'); }
@@ -67,7 +63,7 @@ document.querySelectorAll('[data-note]').forEach(button=>button.addEventListener
 
 function mediaUrl(path) {
   if (!mediaFiles.has(path)) {
-    mediaFiles.set(path,fetch(backend+path,{headers:{'X-Album-Code':accessCode}}).then(response=>{
+    mediaFiles.set(path,fetch(backend+path).then(response=>{
       if (!response.ok) throw new Error('Não foi possível abrir o arquivo.');
       return response.blob();
     }).then(blob=>URL.createObjectURL(blob)).catch(error=>{
@@ -317,12 +313,17 @@ function onSubmit(form,submit) {
     button.disabled = close.disabled = true;
     showError(form);
     try {
-      await submit(new FormData(form));
+      accessCode = form.elements.editPassword.value;
+      const fields = new FormData(form);
+      fields.delete('editPassword');
+      await submit(fields);
+      form.elements.editPassword.value = '';
       render();
       dialog.close();
     } catch (error) {
       showError(form,error.message);
     } finally {
+      accessCode = '';
       button.textContent = original;
       button.disabled = close.disabled = false;
     }
@@ -362,27 +363,4 @@ $('#install').addEventListener('click',async ()=>{
   try { await prompt.prompt(); }
   catch { $('#install-help').showModal(); }
 });
-const accessDialog = $('#access-editor');
-const accessForm = $('#access-form');
-accessDialog.addEventListener('cancel',event=>event.preventDefault());
-accessForm.addEventListener('submit',async event=>{
-  event.preventDefault();
-  const submit = accessForm.querySelector('button');
-  if (submit.disabled) return;
-  submit.disabled = true;
-  accessCode = accessForm.elements.code.value.trim();
-  showError(accessForm);
-  try {
-    album = await api('album');
-    try { localStorage.setItem('mundo-b-d-access',accessCode); } catch {}
-    accessForm.reset();
-    accessDialog.close();
-    render();
-  } catch (error) {
-    showError(accessForm,error.message);
-  } finally {
-    submit.disabled = false;
-  }
-});
-if (accessCode) loadAlbum();
-else accessDialog.showModal();
+loadAlbum();

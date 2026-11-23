@@ -210,8 +210,8 @@ export default {
     };
     if (request.method === 'OPTIONS' && origin === pagesOrigin) return new Response(null,{status:204,headers:cors});
     const token = request.headers.get('X-Album-Code');
-    const allowed = await secretMatches(env.ALBUM_ACCESS_CODE,token);
-    const result = allowed ? await app.fetch(request,env) : json({error:'Digite o código de acesso do álbum.'},401);
+    const allowed = request.method === 'GET' || await secretMatches(env.ALBUM_ACCESS_CODE,token);
+    const result = allowed ? await app.fetch(request,env) : json({error:'Senha incorreta. Confira a senha para salvar.'},401);
     const headers = new Headers(result.headers);
     headers.set('Cache-Control','no-store');
     if (origin === pagesOrigin) Object.entries(cors).forEach(([key,value])=>headers.set(key,value));
