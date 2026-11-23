@@ -5,7 +5,7 @@ self.addEventListener('push',event=>{
   let message;
   try { message = event.data?.json(); } catch {}
   event.waitUntil(self.registration.showNotification(message?.title || 'Mundo B + D ♡',{
-    body:message?.body || 'Tem novidade na nossa história. Vá conferir!',
+    body:message?.body?.replace(/^Dênifer\b/, 'Dhennifer') || 'Tem novidade na nossa história. Vá conferir!',
     icon:new URL('./icon-192.png',self.registration.scope).href
   }));
 });
