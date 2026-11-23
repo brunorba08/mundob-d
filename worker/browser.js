@@ -465,7 +465,7 @@ if (installedAlbum && 'serviceWorker' in navigator && 'PushManager' in window &&
       try { localStorage.setItem(profileKey,role); } catch {}
       pushForm.elements.password.value = '';
       off.hidden = false;
-      status.textContent = 'Avisos ativados para '+role+'.';
+      status.textContent = 'Avisos ativados para '+pushForm.elements.role.selectedOptions[0].textContent+'.';
     } catch (error) {
       if (newSubscription) await newSubscription.unsubscribe().catch(()=>{});
       status.textContent = error.message;

@@ -85,7 +85,7 @@ function pushMessage(path,method,author) {
   const update = method === 'PUT' || path === '/api/cover';
   const added = path === '/api/letters' ? 'escreveu uma cartinha para você' :
     path === '/api/plans' ? 'adicionou um plano para vocês' : 'guardou uma nova lembrança';
-  return {title:'Mundo B + D ♡',body:author+' '+(update ? 'atualizou a nossa história' : added)+'. Vá conferir!'};
+  return {title:'Mundo B + D ♡',body:(author === 'Dênifer' ? 'Dhennifer' : author)+' '+(update ? 'atualizou a nossa história' : added)+'. Vá conferir!'};
 }
 
 async function notifyOther(env,path,method,author) {
