@@ -10,6 +10,19 @@ const noteEditor = $('#note-editor');
 const coverEditor = $('#cover-editor');
 const coverForm = $('#cover-form');
 const timeline = $('#timeline');
+const timelineToggle = $('#timeline-toggle');
+let timelineExpanded = location.hash.startsWith('#memory-');
+
+timelineToggle.addEventListener('click',()=>{
+  timelineExpanded = !timelineExpanded;
+  renderTimeline();
+});
+window.addEventListener('hashchange',()=>{
+  if (!location.hash.startsWith('#memory-')) return;
+  timelineExpanded = true;
+  renderTimeline();
+  document.getElementById(location.hash.slice(1))?.scrollIntoView();
+});
 const dateFormat = new Intl.DateTimeFormat('pt-BR',{dateStyle:'long',timeZone:'UTC'});
 const localDate = () => new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Sao_Paulo'}).format(new Date());
 const format = date => dateFormat.format(new Date(date));
@@ -81,6 +94,7 @@ function photoButton(src,label,lazy=false) {
     const preview = $('#viewer-photo');
     loadImage(preview,src);
     preview.alt = label;
+    $('#viewer-download').replaceChildren(downloadButton(src,label));
     $('#viewer').showModal();
   },'photo-button');
   button.setAttribute('aria-label','Ampliar foto · '+label);
@@ -89,6 +103,30 @@ function photoButton(src,label,lazy=false) {
   image.alt = label;
   if (lazy) image.loading = 'lazy';
   button.append(image);
+  return button;
+}
+
+function downloadButton(src,label,illustration=false) {
+  const button = action('Baixar foto',async ()=>{
+    button.disabled = true;
+    try {
+      const url = illustration ? './cover.webp' : await mediaUrl(src);
+      const link = make('a');
+      link.href = url;
+      const type = illustration ? 'webp' : (await fetch(url)).headers.get('Content-Type')?.split('/')[1];
+      const extensions = {jpeg:'jpg', 'svg+xml':'svg'};
+      const filename = label.replace(/[^\p{L}\p{N} -]/gu,'').trim() || 'foto';
+      link.download = filename+(type ? '.'+(extensions[type] ?? type) : '');
+      document.body.append(link);
+      link.click();
+      link.remove();
+    } catch {
+      button.textContent = 'Tentar baixar novamente';
+    } finally {
+      button.disabled = false;
+    }
+  },'photo-download');
+  button.setAttribute('aria-label','Baixar foto · '+label);
   return button;
 }
 
@@ -105,13 +143,17 @@ function renderCover() {
   const cover = $('#cover');
   cover.className = featured.length ? 'cover-grid' : '';
   if (featured.length) {
-    cover.replaceChildren(...featured.map(({src,label})=>photoButton(src,label)));
+    cover.replaceChildren(...featured.map(({src,label})=>{
+      const photo = make('div');
+      photo.append(photoButton(src,label),downloadButton(src,label));
+      return photo;
+    }));
     $('#cover-caption').textContent = 'Bruno & Dhennifer';
   } else if (!cover.firstElementChild || cover.querySelector('button')) {
     const img = make('img');
     img.src = './cover.webp';
     img.alt = 'Praia ao pôr do sol, imagem ilustrativa';
-    cover.replaceChildren(img);
+    cover.replaceChildren(img,downloadButton('./cover.webp','Praia ao pôr do sol',true));
   }
 }
 
@@ -134,12 +176,15 @@ function renderAnniversary() {
 
 function renderTimeline() {
   timeline.replaceChildren();
+  timelineToggle.hidden = album.memories.length <= 1;
+  timelineToggle.textContent = timelineExpanded ? 'Ver menos' : 'Ver todas as lembranças';
+  timelineToggle.setAttribute('aria-expanded',String(timelineExpanded));
   if (!album.memories.length) {
     const empty = make('div',null,'empty');
     empty.append(make('strong','Toda história tem um começo.'),make('p','Que tal guardar um dia especial de vocês?'),action('Guardar primeira lembrança',()=>openMemory(),'btn'));
     timeline.append(empty);
   }
-  for (const memory of album.memories) {
+  for (const memory of (timelineExpanded ? album.memories : album.memories.slice(0,1))) {
     const card = make('article',null,'memory');
     card.id = 'memory-'+memory.id;
     const time = make('time',format(memory.date));
@@ -153,6 +198,7 @@ function renderTimeline() {
         const caption = memory.captions?.[src];
         figure.append(photoButton(src,caption || memory.title+' · foto '+(index+1),true));
         if (caption) figure.append(make('figcaption',caption));
+        figure.append(downloadButton(src,caption || memory.title+' - foto '+(index+1)));
         grid.append(figure);
       });
       card.append(grid);
@@ -330,6 +376,8 @@ function onSubmit(form,submit) {
   });
 }
 onSubmit(form,async data=>{
+  if (!form.elements.photos.files.length) data.delete('photos');
+  if (!form.elements.video.files.length) data.delete('video');
   if (editing) {
     data.set('originalDate',editing.originalDate ?? editing.date);
     data.set('revision',editing.revision ?? '');
